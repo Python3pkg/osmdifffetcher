@@ -18,13 +18,13 @@
 '''
 
 import sys
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 from datetime import datetime
 import time
 import os
 import errno
 import gzip
-import StringIO
+import io
 
 REPLICATE_BASE = 'http://planet.openstreetmap.org/replication/minute/'
 
@@ -38,9 +38,9 @@ try:
 except:
     pass
     
-opener = urllib2.build_opener()
+opener = urllib.request.build_opener()
 opener.addheaders = [('User-Agent', 'OSMDiffFetcher/0.1.0')]
-urllib2.install_opener(opener)
+urllib.request.install_opener(opener)
 
 class DiffFetcher:
     def __init__(self, save_state=False):
@@ -64,7 +64,7 @@ class DiffFetcher:
     
     def init_latest(self):
         url = REPLICATE_BASE + 'state.txt'
-        statefile = urllib2.urlopen(url)
+        statefile = urllib.request.urlopen(url)
         self._process_statefile(statefile)
         
     def _process_statefile(self, statefile):
@@ -88,25 +88,25 @@ class DiffFetcher:
         '''
         Returns the next diff from the server even if it has to wait.
         '''
-        result = self.next()
+        result = next(self)
         while not result:
             time.sleep(60.0)
-            result = self.next()
+            result = next(self)
         
         return result
 
-    def next(self):
+    def __next__(self):
         '''
         Returns the next diff from the server or none if up to date
         '''
         url = REPLICATE_BASE + self.sequence_path + '.osc.gz'
         try:
-            compressed = urllib2.urlopen(url)
-        except urllib2.HTTPError, e:
+            compressed = urllib.request.urlopen(url)
+        except urllib.error.HTTPError as e:
             if e.code == 404:
                 return None
             else:
                 raise e
         self.sequence += 1
         
-        return gzip.GzipFile(fileobj=StringIO.StringIO(compressed.read()))
+        return gzip.GzipFile(fileobj=io.StringIO(compressed.read()))
